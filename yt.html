@@ -411,6 +411,11 @@
                         <i class="fa fa-forward"></i> Passer la publicité
                     </button>
                 </div>
+                <div style="margin-top: 10px; text-align: center;">
+                    <button id="toggleModeBtn" style="background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                        <i class="fa fa-shield"></i> Mode sans publicités
+                    </button>
+                </div>
             </div>
         </main>
     </div>
@@ -428,6 +433,7 @@
         const searchInput = document.getElementById('searchInput');
         const adControls = document.getElementById('adControls');
         const skipAdBtn = document.getElementById('skipAdBtn');
+        const toggleModeBtn = document.getElementById('toggleModeBtn');
         
         let videoHistory = [];
         let filteredHistory = [];
@@ -435,6 +441,7 @@
         let player = null;
         let saveInterval = null;
         let titleCache = new Map(); // Cache pour les titres de vidéos
+        let adFreeMode = true; // Mode sans publicités par défaut
 
         // Thème clair/sombre
         themeBtn.onclick = function() {
@@ -637,8 +644,12 @@
             // Mettre à jour le titre
             currentVideoTitle.textContent = item.title;
             
-            // Charger la vidéo avec le timestamp sauvegardé
-            loadVideoWithTimestamp(item.videoId, item.timestamp);
+            // Charger selon le mode actuel
+            if (adFreeMode) {
+                loadVideoAlternative(item.videoId, item.timestamp, item.title);
+            } else {
+                loadVideoWithTimestamp(item.videoId, item.timestamp);
+            }
             
             // Mettre à jour la sélection visuelle
             Array.from(historyList.children).forEach((el, i) => {
@@ -652,10 +663,10 @@
                 timestamp: item.timestamp
             }));
             
-            setStatus('Vidéo reprise à ' + formatTime(item.timestamp) + ' - Lecture automatique activée');
+            setStatus('Vidéo reprise à ' + formatTime(item.timestamp) + ' via service alternatif');
         }
 
-        function loadVideoWithTimestamp(videoId, startTime = 0) {
+                function loadVideoWithTimestamp(videoId, startTime = 0) {
             if (player) {
                 // Si le player existe déjà, charger la nouvelle vidéo
                 player.loadVideoById({
@@ -664,7 +675,7 @@
                 });
                 
                 // Forcer la lecture automatique
-            setTimeout(() => {
+                setTimeout(() => {
                     if (player && player.playVideo) {
                         player.playVideo();
                     }
@@ -692,8 +703,24 @@
                         disablekb: 0,
                         loop: 0,
                         playlist: '',
-                        // Paramètres anti-pub
-                        host: 'https://www.youtube-nocookie.com'
+                        // Paramètres anti-pub avancés
+                        host: 'https://www.youtube-nocookie.com',
+                        // Essayer de désactiver les publicités
+                        adformat: 0,
+                        adunit: 0,
+                        adtest: 0,
+                        // Paramètres de confidentialité
+                        privacy: 1,
+                        // Désactiver les annotations
+                        iv_load_policy: 3,
+                        // Désactiver les sous-titres automatiques
+                        cc_load_policy: 0,
+                        // Désactiver les vidéos liées
+                        rel: 0,
+                        // Désactiver les infos
+                        showinfo: 0,
+                        // Mode modeste
+                        modestbranding: 1
                     },
                     events: {
                         onReady: onPlayerReady,
@@ -731,22 +758,54 @@
                 // Arrêter la sauvegarde automatique
                 stopAutoSave();
                 
-                // Charger la vidéo depuis le début
-                loadVideoWithTimestamp(videoId, 0);
-                currentVideoTitle.textContent = title;
-                
-                // Ajouter à l'historique
-                addToHistory(videoId, title, 0);
-                
-                setStatus('Vidéo chargée avec lecture automatique !');
-                
-                // Vider le champ de saisie
-                document.getElementById('videoUrl').value = '';
+                // Charger selon le mode actuel
+                if (adFreeMode) {
+                    loadVideoAlternative(videoId, 0, title);
+                } else {
+                    loadVideoWithTimestamp(videoId, 0);
+                    currentVideoTitle.textContent = title;
+                    addToHistory(videoId, title, 0);
+                    setStatus('Vidéo chargée avec lecture automatique !');
+                    document.getElementById('videoUrl').value = '';
+                }
                 
             } catch (error) {
                 setStatus('Erreur lors du chargement de la vidéo.', 'red');
                 currentVideoTitle.textContent = 'Erreur de chargement';
             }
+        }
+
+        // Fonction alternative pour charger les vidéos avec moins de publicités
+        function loadVideoAlternative(videoId, startTime = 0, title = '') {
+            // Essayer d'abord avec un service de proxy YouTube
+            const proxyUrl = `https://piped.kavin.rocks/watch?v=${videoId}`;
+            
+            // Créer un iframe avec le service alternatif
+            const iframe = document.createElement('iframe');
+            iframe.src = proxyUrl;
+            iframe.width = '100%';
+            iframe.height = '100%';
+            iframe.frameBorder = '0';
+            iframe.allowFullscreen = true;
+            iframe.style.borderRadius = '14px';
+            
+            // Vider le conteneur et ajouter l'iframe
+            const playerContainer = document.getElementById('youtubePlayer');
+            playerContainer.innerHTML = '';
+            playerContainer.appendChild(iframe);
+            
+            videoContainer.style.display = 'block';
+            currentVideoTitle.textContent = title || `Vidéo ${videoId}`;
+            
+            // Ajouter à l'historique
+            if (title) {
+                addToHistory(videoId, title, startTime);
+            }
+            
+            setStatus('Vidéo chargée via service alternatif (moins de publicités) !');
+            
+            // Vider le champ de saisie
+            document.getElementById('videoUrl').value = '';
         }
 
         // Gestionnaire de soumission du formulaire
@@ -984,8 +1043,12 @@
                         currentVideoId = lastVideoData.videoId;
                         currentVideoTitle.textContent = lastVideoData.title;
                         
-                        // Charger la vidéo avec le timestamp sauvegardé
-                        loadVideoWithTimestamp(lastVideoData.videoId, existingItem.timestamp);
+                        // Charger selon le mode actuel
+                        if (adFreeMode) {
+                            loadVideoAlternative(lastVideoData.videoId, existingItem.timestamp, lastVideoData.title);
+                        } else {
+                            loadVideoWithTimestamp(lastVideoData.videoId, existingItem.timestamp);
+                        }
                         
                         // Mettre à jour la sélection visuelle
                         const historyIndex = filteredHistory.findIndex(item => item.videoId === lastVideoData.videoId);
@@ -995,7 +1058,7 @@
                             });
                         }
                         
-                        setStatus('Reprise de la dernière vidéo regardée à ' + formatTime(existingItem.timestamp) + ' - Lecture automatique activée');
+                        setStatus('Reprise de la dernière vidéo regardée à ' + formatTime(existingItem.timestamp) + ' via service alternatif');
                         
                         // Mettre à jour le timestamp si nécessaire
                         if (lastVideoData.timestamp > existingItem.timestamp) {
@@ -1068,6 +1131,32 @@
         // Gestionnaire pour le bouton de saut de publicité
         skipAdBtn.addEventListener('click', function() {
             skipAd();
+        });
+
+        // Gestionnaire pour basculer entre les modes
+        toggleModeBtn.addEventListener('click', function() {
+            adFreeMode = !adFreeMode;
+            if (adFreeMode) {
+                toggleModeBtn.innerHTML = '<i class="fa fa-shield"></i> Mode sans publicités';
+                toggleModeBtn.style.background = '#4CAF50';
+                setStatus('Mode sans publicités activé', '#4CAF50');
+            } else {
+                toggleModeBtn.innerHTML = '<i class="fa fa-youtube"></i> Mode YouTube normal';
+                toggleModeBtn.style.background = '#2196f3';
+                setStatus('Mode YouTube normal activé', '#2196f3');
+            }
+            
+            // Recharger la vidéo actuelle avec le nouveau mode
+            if (currentVideoId) {
+                const currentItem = videoHistory.find(item => item.videoId === currentVideoId);
+                if (currentItem) {
+                    if (adFreeMode) {
+                        loadVideoAlternative(currentVideoId, currentItem.timestamp, currentItem.title);
+                    } else {
+                        loadVideoWithTimestamp(currentVideoId, currentItem.timestamp);
+                    }
+                }
+            }
         });
 
         // Nettoyer le cache des titres périodiquement pour éviter la surcharge mémoire
