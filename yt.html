@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lecteur YouTube</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="icon" type="image/png" href="cms-favicon-webbrand-512x512-01.png">
+    <style>
+        :root {
+            --primary: #2196f3;
+            --primary-dark: #1976d2;
+            --sidebar-bg: #181818;
+            --sidebar-active: #232323;
+            --bg: #181818;
+            --bg-light: #232323;
+            --text: #e0e0e0;
+            --text-light: #fff;
+            --card: #232323;
+            --shadow: 0 4px 24px 0 #000a;
+            --border-radius: 16px;
+            --accent: #ffc107;
+            --accent-dark: #e6a800;
+        }
+        body[data-theme='light'] {
+            --primary: #1565c0;
+            --primary-dark: #0d47a1;
+            --sidebar-bg: #f4f6fa;
+            --sidebar-active: #e9eef6;
+            --bg: #fff;
+            --bg-light: #f4f6fa;
+            --text: #232733;
+            --text-light: #181c24;
+            --card: #f4f6fa;
+            --shadow: 0 8px 32px 0 #1565c022;
+            --accent: #ffc107;
+            --accent-dark: #e6a800;
+        }
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+        .dashboard {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 270px;
+            background: var(--sidebar-bg);
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            box-shadow: 2px 0 12px #0002;
+            z-index: 2;
+            transition: background 0.3s;
+            padding: 0;
+            height: 100vh;
+            position: sticky;
+            top: 0;
+        }
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 32px 24px 18px 24px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--bg-light);
+            justify-content: center;
+            text-align: center;
+        }
+        .sidebar-header i {
+            font-size: 2.1rem;
+        }
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 0 0 0;
+            margin: 0;
+            list-style: none;
+            background: var(--sidebar-bg);
+            min-height: 0;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .history-list::-webkit-scrollbar {
+            display: none;
+        }
+        .history-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 13px 24px;
+            margin: 0 0 2px 0;
+            border-radius: var(--border-radius);
+            background: var(--sidebar-bg);
+            color: var(--text-light);
+            cursor: pointer;
+            transition: background 0.18s, color 0.18s, box-shadow 0.18s, transform 0.13s;
+            border-left: 4px solid transparent;
+            font-size: 1.08rem;
+            font-weight: 500;
+            position: relative;
+        }
+        .history-item.selected, .history-item:hover {
+            background: var(--sidebar-active);
+            color: var(--text-light);
+            border-left: 4px solid var(--primary);
+            box-shadow: 0 2px 8px #0004;
+            transform: scale(1.01);
+        }
+        .history-item .history-actions {
+            display: none;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .history-item:hover .history-actions {
+            display: flex;
+        }
+        .history-action-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .history-action-btn:hover {
+            background: var(--primary-dark);
+        }
+        .history-action-btn.reset {
+            background: var(--accent);
+            color: #232733;
+        }
+        .history-action-btn.reset:hover {
+            background: var(--accent-dark);
+        }
+        .history-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--bg-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+        .history-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .history-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .history-time {
+            font-size: 0.9rem;
+            color: var(--text);
+            opacity: 0.8;
+        }
+        .sidebar-footer {
+            padding: 18px 24px 24px 24px;
+            margin-top: auto;
+        }
+        .theme-btn {
+            background: var(--accent);
+            color: #232733;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 8px var(--accent)33;
+            transition: background 0.2s, color 0.2s;
+            width: 100%;
+        }
+        .theme-btn:hover {
+            background: var(--accent-dark);
+        }
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-width: 0;
+            background: var(--bg);
+            padding: 32px 0 0 0;
+        }
+        .card {
+            background: var(--card);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 48px 48px 32px 48px;
+            margin-bottom: 32px;
+            width: 99%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .card-title {
+            color: var(--primary);
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 18px;
+            letter-spacing: 1px;
+            text-align: left;
+            width: 100%;
+        }
+        .current-video-title {
+            font-size: 1.7rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 18px;
+            text-align: center;
+            width: 100%;
+        }
+        .video-wrapper {
+            width: 100%;
+            max-width: 1200px;
+            position: relative;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px var(--primary)33;
+            background: #000;
+            aspect-ratio: 16/9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+        .video-wrapper iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 0;
+        }
+        .form-youtube {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-start;
+            margin: 0 0 18px 0;
+            padding: 0;
+            background: none;
+            border-bottom: none;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+        .form-youtube input, .form-youtube button {
+            padding: 12px 14px;
+            border-radius: 8px;
+            border: none;
+            font-size: 1rem;
+            outline: none;
+            transition: box-shadow 0.2s, background 0.2s;
+        }
+        .form-youtube input {
+            flex: 1;
+            min-width: 300px;
+            background: var(--bg-light);
+            color: var(--text);
+            border: 1px solid #2e3340;
+        }
+        .form-youtube input:focus {
+            box-shadow: 0 0 0 2px var(--primary)55;
+            background: var(--bg-light);
+        }
+        .form-youtube button[type="submit"] {
+            background: var(--primary);
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            min-width: 110px;
+            letter-spacing: 1px;
+            border: none;
+            box-shadow: 0 2px 8px var(--primary)22;
+        }
+        .form-youtube button[type="submit"]:hover {
+            background: var(--primary-dark);
+        }
+        #status {
+            text-align: center;
+            margin: 18px 0 0 0;
+            font-size: 1.1rem;
+            min-height: 24px;
+            width: 100%;
+        }
+        .empty-history {
+            text-align: center;
+            color: var(--text);
+            opacity: 0.7;
+            padding: 40px 20px;
+            font-style: italic;
+        }
+        @media (max-width: 1100px) {
+            .dashboard { flex-direction: column; }
+            .sidebar { width: 100%; max-height: 220px; flex-direction: row; border-right: none; border-bottom: 1.5px solid var(--bg-light); }
+            .history-list { display: flex; flex-direction: row; overflow-x: auto; }
+            .history-item { min-width: 200px; flex: 1 1 200px; text-align: center; }
+            .main-content { padding: 18px 0 0 0; }
+            .card { padding: 18px 6px 12px 6px; }
+            .video-wrapper { max-width: 100vw; }
+        }
+        @media (max-width: 700px) {
+            .dashboard { flex-direction: column; }
+            .container { padding: 0; }
+            .main-content { gap: 0; padding: 8px 0 0 0; }
+            .sidebar { padding: 0; }
+            .video-wrapper { max-width: 100vw; }
+        }
+        @media (max-width: 500px) {
+            .sidebar-header { font-size: 1.1rem; padding: 12px 8px 8px 8px; }
+            .container { padding: 0; }
+            .history-list { font-size: 0.95rem; }
+            .video-wrapper { aspect-ratio: 16/9; }
+            .card { padding: 8px 2px 8px 2px; }
+        }
+        .sidebar-search {
+            padding: 8px 18px 4px 18px;
+        }
+        .sidebar-search-box {
+            position: relative;
+            width: 100%;
+        }
+        .sidebar-search-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px 28px 6px 10px;
+            border-radius: 7px;
+            border: none;
+            background: var(--bg-light);
+            color: var(--text);
+            font-size: 0.95rem;
+            outline: none;
+            transition: background 0.2s, color 0.2s;
+        }
+        .sidebar-search-input:focus {
+            box-shadow: 0 0 0 2px var(--primary)55;
+            background: var(--bg-light);
+        }
+        .sidebar-search-icon {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #888;
+            font-size: 1rem;
+            pointer-events: none;
+        }
+        /* Masquer toutes les scrollbars */
+        body, .dashboard, .sidebar, .history-list, .main-content {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        body::-webkit-scrollbar,
+        .dashboard::-webkit-scrollbar,
+        .sidebar::-webkit-scrollbar,
+        .history-list::-webkit-scrollbar,
+        .main-content::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <nav class="sidebar">
+            <div class="sidebar-header"><i class="fab fa-youtube"></i> YouTube</div>
+            <div class="sidebar-search">
+                <div class="sidebar-search-box">
+                    <input id="searchInput" class="sidebar-search-input" type="text" placeholder="Rechercher dans l'historique...">
+                    <span class="sidebar-search-icon"><i class="fa fa-search"></i></span>
+                </div>
+            </div>
+            <ul class="history-list" id="historyList">
+                <li class="empty-history">Aucune vidéo dans l'historique</li>
+            </ul>
+            <div class="sidebar-footer">
+                <button class="theme-btn" id="themeBtn"><i class="fa-solid fa-circle-half-stroke"></i> Mode Clair</button>
+            </div>
+        </nav>
+        <main class="main-content">
+            <div class="card">
+                <form id="videoForm" class="form-youtube">
+                    <input type="text" id="videoUrl" placeholder="Collez votre lien YouTube ici..." required>
+                    <button type="submit">Lancer la vidéo</button>
+                </form>
+                <div class="current-video-title" id="currentVideoTitle">Sélectionnez une vidéo</div>
+                <div class="video-wrapper" id="videoContainer" style="display: none;">
+                    <div id="youtubePlayer"></div>
+                </div>
+                <div id="status"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- YouTube API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    
+    <script>
+        const videoForm = document.getElementById('videoForm');
+        const historyList = document.getElementById('historyList');
+        const videoContainer = document.getElementById('videoContainer');
+        const statusDiv = document.getElementById('status');
+        const currentVideoTitle = document.getElementById('currentVideoTitle');
+        const themeBtn = document.getElementById('themeBtn');
+        const searchInput = document.getElementById('searchInput');
+        
+        let videoHistory = [];
+        let filteredHistory = [];
+        let currentVideoId = null;
+        let player = null;
+        let saveInterval = null;
+        let titleCache = new Map(); // Cache pour les titres de vidéos
+
+        // Thème clair/sombre
+        themeBtn.onclick = function() {
+            if (document.body.getAttribute('data-theme') === 'light') {
+                document.body.removeAttribute('data-theme');
+                themeBtn.innerHTML = '<i class="fa-solid fa-circle-half-stroke"></i> Mode Clair';
+            } else {
+                document.body.setAttribute('data-theme', 'light');
+                themeBtn.innerHTML = '<i class="fa-solid fa-circle-half-stroke"></i> Mode Sombre';
+            }
+        };
+
+        function setStatus(msg, color = '#2196f3') {
+            statusDiv.textContent = msg;
+            statusDiv.style.color = color;
+        }
+
+        function extractVideoId(url) {
+            const patterns = [
+                /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+                /youtube\.com\/v\/([^&\n?#]+)/,
+                /youtube\.com\/watch\?.*v=([^&\n?#]+)/
+            ];
+
+            for (let pattern of patterns) {
+                const match = url.match(pattern);
+                if (match) {
+                    return match[1];
+                }
+            }
+            return null;
+        }
+
+        async function getVideoTitle(videoId) {
+            // Vérifier le cache d'abord
+            if (titleCache.has(videoId)) {
+                return titleCache.get(videoId);
+            }
+            
+            try {
+                // Essayer d'abord avec l'API oEmbed de YouTube
+                const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                if (data.title) {
+                        titleCache.set(videoId, data.title);
+                    return data.title;
+                    }
+                }
+                
+                // Fallback vers noembed si YouTube oEmbed échoue
+                const noembedResponse = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`);
+                if (noembedResponse.ok) {
+                    const noembedData = await noembedResponse.json();
+                    if (noembedData.title) {
+                        titleCache.set(videoId, noembedData.title);
+                        return noembedData.title;
+                    }
+                }
+                
+                // Fallback vers une API alternative
+                const altResponse = await fetch(`https://api.vevioz.com/@api/oembed?url=https://www.youtube.com/watch?v=${videoId}`);
+                if (altResponse.ok) {
+                    const altData = await altResponse.json();
+                    if (altData.title) {
+                        titleCache.set(videoId, altData.title);
+                        return altData.title;
+                    }
+                }
+                
+                // Si tout échoue, essayer de récupérer depuis la page YouTube
+                const pageResponse = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+                    method: 'GET',
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    }
+                });
+                
+                if (pageResponse.ok) {
+                    const html = await pageResponse.text();
+                    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+                    if (titleMatch && titleMatch[1]) {
+                        let title = titleMatch[1].replace(' - YouTube', '').trim();
+                        if (title && title !== 'YouTube') {
+                            titleCache.set(videoId, title);
+                            return title;
+                        }
+                    }
+                }
+                
+                const fallbackTitle = `Vidéo YouTube (${videoId})`;
+                titleCache.set(videoId, fallbackTitle);
+                return fallbackTitle;
+            } catch (error) {
+                console.error('Erreur lors de la récupération du titre:', error);
+                const fallbackTitle = `Vidéo YouTube (${videoId})`;
+                titleCache.set(videoId, fallbackTitle);
+                return fallbackTitle;
+            }
+        }
+
+        function addToHistory(videoId, title, timestamp = 0) {
+            const existingIndex = videoHistory.findIndex(item => item.videoId === videoId);
+            
+            if (existingIndex !== -1) {
+                videoHistory[existingIndex].timestamp = timestamp;
+                videoHistory[existingIndex].lastWatched = new Date().toISOString();
+            } else {
+                videoHistory.unshift({
+                    videoId: videoId,
+                    title: title,
+                    timestamp: timestamp,
+                    lastWatched: new Date().toISOString()
+                });
+            }
+
+            if (videoHistory.length > 50) {
+                videoHistory = videoHistory.slice(0, 50);
+            }
+
+            localStorage.setItem('youtube_history', JSON.stringify(videoHistory));
+            updateHistoryDisplay();
+        }
+
+        function updateHistoryDisplay() {
+            if (videoHistory.length === 0) {
+                historyList.innerHTML = '<li class="empty-history">Aucune vidéo dans l\'historique</li>';
+                return;
+            }
+
+            historyList.innerHTML = '';
+            filteredHistory.forEach((item, idx) => {
+                const li = document.createElement('li');
+                li.className = 'history-item';
+                if (item.videoId === currentVideoId) {
+                    li.classList.add('selected');
+                }
+                
+                const timeString = formatTime(item.timestamp);
+                const dateString = formatDate(item.lastWatched);
+                
+                li.innerHTML = `
+                    <span class="history-icon"><i class="fab fa-youtube"></i></span>
+                    <div class="history-info">
+                        <div class="history-title">${item.title}</div>
+                        <div class="history-time">${timeString} • ${dateString}</div>
+                        <div class="history-actions">
+                            <button class="history-action-btn reset" onclick="event.stopPropagation(); resetVideoTime('${item.videoId}')">
+                                <i class="fa fa-undo"></i> Réinitialiser
+                            </button>
+                            <button class="history-action-btn" onclick="event.stopPropagation(); removeFromHistory('${item.videoId}')">
+                                <i class="fa fa-trash"></i> Supprimer
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                li.onclick = () => selectHistoryItem(idx);
+                historyList.appendChild(li);
+            });
+        }
+
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            if (hours > 0) {
+                return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            } else {
+                return `${minutes}:${secs.toString().padStart(2, '0')}`;
+            }
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 0) {
+                return "Aujourd'hui";
+            } else if (diffDays === 1) {
+                return "Hier";
+            } else if (diffDays < 7) {
+                return `Il y a ${diffDays} jours`;
+            } else {
+                return date.toLocaleDateString('fr-FR');
+            }
+        }
+
+        function selectHistoryItem(idx) {
+            const item = filteredHistory[idx];
+            currentVideoId = item.videoId;
+            
+            // Arrêter la sauvegarde automatique
+            stopAutoSave();
+            
+            // Mettre à jour le titre
+            currentVideoTitle.textContent = item.title;
+            
+            // Charger la vidéo avec le timestamp sauvegardé
+            loadVideoWithTimestamp(item.videoId, item.timestamp);
+            
+            // Mettre à jour la sélection visuelle
+            Array.from(historyList.children).forEach((el, i) => {
+                el.classList.toggle('selected', i === idx);
+            });
+            
+            // Sauvegarder comme dernière vidéo regardée
+            localStorage.setItem('youtube_last_video', JSON.stringify({
+                videoId: item.videoId,
+                title: item.title,
+                timestamp: item.timestamp
+            }));
+            
+            setStatus('Vidéo reprise à ' + formatTime(item.timestamp) + ' - Lecture automatique activée');
+        }
+
+        function loadVideoWithTimestamp(videoId, startTime = 0) {
+            if (player) {
+                // Si le player existe déjà, charger la nouvelle vidéo
+                player.loadVideoById({
+                    videoId: videoId,
+                    startSeconds: startTime
+                });
+                
+                // Forcer la lecture automatique
+            setTimeout(() => {
+                    if (player && player.playVideo) {
+                        player.playVideo();
+                    }
+                }, 1000);
+            } else {
+                // Créer le player si il n'existe pas
+                player = new YT.Player('youtubePlayer', {
+                    height: '100%',
+                    width: '100%',
+                    videoId: videoId,
+                    playerVars: {
+                        start: startTime,
+                        autoplay: 1,
+                        rel: 0,
+                        modestbranding: 1,
+                        enablejsapi: 1,
+                        origin: window.location.origin,
+                        controls: 1,
+                        showinfo: 0,
+                        iv_load_policy: 3,
+                        cc_load_policy: 0
+                    },
+                    events: {
+                        onReady: onPlayerReady,
+                        onStateChange: onPlayerStateChange,
+                        onError: onPlayerError
+                    }
+                });
+            }
+            
+            videoContainer.style.display = 'block';
+        }
+
+        async function loadVideo() {
+            const url = document.getElementById('videoUrl').value.trim();
+            
+            if (!url) {
+                setStatus('Veuillez entrer un lien YouTube.', 'red');
+                return;
+            }
+
+            const videoId = extractVideoId(url);
+            
+            if (!videoId) {
+                setStatus('Lien YouTube invalide. Veuillez vérifier votre lien.', 'red');
+                return;
+            }
+
+            setStatus('Récupération du titre de la vidéo...');
+            currentVideoTitle.textContent = 'Chargement...';
+            
+            try {
+                const title = await getVideoTitle(videoId);
+                currentVideoId = videoId;
+                
+                // Arrêter la sauvegarde automatique
+                stopAutoSave();
+                
+                // Charger la vidéo depuis le début
+                loadVideoWithTimestamp(videoId, 0);
+                currentVideoTitle.textContent = title;
+                
+                // Ajouter à l'historique
+                addToHistory(videoId, title, 0);
+                
+                setStatus('Vidéo chargée avec lecture automatique !');
+                
+                // Vider le champ de saisie
+                document.getElementById('videoUrl').value = '';
+                
+            } catch (error) {
+                setStatus('Erreur lors du chargement de la vidéo.', 'red');
+                currentVideoTitle.textContent = 'Erreur de chargement';
+            }
+        }
+
+        // Gestionnaire de soumission du formulaire
+        videoForm.onsubmit = (e) => {
+            e.preventDefault();
+            loadVideo();
+        };
+
+        // Recherche dans l'historique
+        searchInput.addEventListener('input', function() {
+            const query = searchInput.value.trim().toLowerCase();
+            if (!query) {
+                filteredHistory = [...videoHistory];
+            } else {
+                filteredHistory = videoHistory.filter(item => 
+                    item.title.toLowerCase().includes(query)
+                );
+            }
+            updateHistoryDisplay();
+        });
+
+        // YouTube Player API Events
+        function onPlayerReady(event) {
+            console.log('Player prêt');
+            
+            // Démarrer la sauvegarde automatique après un délai
+            setTimeout(() => {
+                startAutoSave();
+            }, 2000);
+            
+            // Si c'est une reprise de vidéo, s'assurer qu'elle démarre
+            if (currentVideoId) {
+                setTimeout(() => {
+                    if (player && player.playVideo) {
+                        player.playVideo();
+                    }
+                }, 1500);
+            }
+        }
+
+        function onPlayerStateChange(event) {
+            // État 1 = lecture en cours, 2 = pause, 0 = fin, 3 = mise en mémoire tampon, 5 = vidéo cued
+            if (event.data === 1) {
+                // Lecture en cours - sauvegarder immédiatement
+                saveCurrentTime();
+            } else if (event.data === 2) {
+                // Pause - sauvegarder immédiatement
+                saveCurrentTime();
+            } else if (event.data === 0) {
+                // Fin de vidéo - sauvegarder le temps final
+                saveCurrentTime();
+                stopAutoSave();
+            } else if (event.data === 3) {
+                // Mise en mémoire tampon - sauvegarder le temps actuel
+                saveCurrentTime();
+            } else if (event.data === 5) {
+                // Vidéo cued (prête à jouer) - sauvegarder après un délai
+                setTimeout(() => {
+                    saveCurrentTime();
+                }, 1000);
+            }
+        }
+
+        function onPlayerError(event) {
+            console.error('Erreur du player YouTube:', event.data);
+            setStatus('Erreur lors de la lecture de la vidéo.', 'red');
+        }
+
+        // Système de sauvegarde automatique amélioré
+        function startAutoSave() {
+            if (saveInterval) {
+                clearInterval(saveInterval);
+            }
+            
+            // Sauvegarder toutes les 3 secondes pendant la lecture
+            saveInterval = setInterval(() => {
+                if (player && player.getPlayerState && player.getPlayerState() === 1) {
+                    saveCurrentTime();
+                }
+            }, 3000);
+        }
+
+        function stopAutoSave() {
+            if (saveInterval) {
+                clearInterval(saveInterval);
+                saveInterval = null;
+            }
+        }
+
+        function saveCurrentTime() {
+            if (player && currentVideoId) {
+                try {
+                    const currentTime = Math.floor(player.getCurrentTime());
+            const currentItem = videoHistory.find(item => item.videoId === currentVideoId);
+                    
+                    if (currentItem && currentTime > 0) {
+                        currentItem.timestamp = currentTime;
+                currentItem.lastWatched = new Date().toISOString();
+                
+                localStorage.setItem('youtube_history', JSON.stringify(videoHistory));
+                
+                        // Sauvegarder aussi comme dernière vidéo regardée
+                localStorage.setItem('youtube_last_video', JSON.stringify({
+                    videoId: currentVideoId,
+                    title: currentItem.title,
+                            timestamp: currentTime
+                }));
+                
+                updateHistoryDisplay();
+                
+                        console.log('Temps sauvegardé:', formatTime(currentTime), 'pour la vidéo:', currentVideoId);
+                    }
+                } catch (error) {
+                    console.error('Erreur lors de la sauvegarde du temps:', error);
+                }
+            }
+        }
+
+        // Détecter les interactions utilisateur pour sauvegarder immédiatement
+        document.addEventListener('keydown', function(e) {
+            // Touches qui peuvent changer la position de la vidéo
+            const seekKeys = ['ArrowLeft', 'ArrowRight', 'Home', 'End', ' '];
+            
+            if (seekKeys.includes(e.key) && player && currentVideoId) {
+                // Sauvegarder après un délai pour laisser le temps au player de se mettre à jour
+                setTimeout(() => {
+                    saveCurrentTime();
+                }, 500);
+            }
+        });
+
+        // Détecter les clics sur le player
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('#youtubePlayer') && player && currentVideoId) {
+            setTimeout(() => {
+                saveCurrentTime();
+                }, 500);
+            }
+        });
+
+        // Sauvegarder avant de quitter
+        window.addEventListener('beforeunload', function() {
+                saveCurrentTime();
+        });
+
+        // Charger l'historique au démarrage
+        window.onload = function() {
+            const savedHistory = localStorage.getItem('youtube_history');
+            if (savedHistory) {
+                try {
+                    videoHistory = JSON.parse(savedHistory);
+                    filteredHistory = [...videoHistory];
+                    updateHistoryDisplay();
+                } catch (e) {
+                    console.error('Erreur lors du chargement de l\'historique:', e);
+                }
+            }
+            
+            // Reprendre la dernière vidéo regardée
+            const lastVideo = localStorage.getItem('youtube_last_video');
+            if (lastVideo) {
+                try {
+                    const lastVideoData = JSON.parse(lastVideo);
+                    const existingItem = videoHistory.find(item => item.videoId === lastVideoData.videoId);
+                    
+                    if (existingItem) {
+                        currentVideoId = lastVideoData.videoId;
+                        currentVideoTitle.textContent = lastVideoData.title;
+                        
+                        // Charger la vidéo avec le timestamp sauvegardé
+                        loadVideoWithTimestamp(lastVideoData.videoId, existingItem.timestamp);
+                        
+                        // Mettre à jour la sélection visuelle
+                        const historyIndex = filteredHistory.findIndex(item => item.videoId === lastVideoData.videoId);
+                        if (historyIndex !== -1) {
+                            Array.from(historyList.children).forEach((el, i) => {
+                                el.classList.toggle('selected', i === historyIndex);
+                            });
+                        }
+                        
+                        setStatus('Reprise de la dernière vidéo regardée à ' + formatTime(existingItem.timestamp) + ' - Lecture automatique activée');
+                        
+                        // Mettre à jour le timestamp si nécessaire
+                        if (lastVideoData.timestamp > existingItem.timestamp) {
+                            existingItem.timestamp = lastVideoData.timestamp;
+                            localStorage.setItem('youtube_history', JSON.stringify(videoHistory));
+                            updateHistoryDisplay();
+                        }
+                    }
+                } catch (e) {
+                    console.error('Erreur lors de la reprise de la dernière vidéo:', e);
+                }
+            }
+            
+            // Focus sur le champ de saisie
+            document.getElementById('videoUrl').focus();
+        };
+
+        // Fonction pour réinitialiser le temps d'une vidéo
+        function resetVideoTime(videoId) {
+            const item = videoHistory.find(item => item.videoId === videoId);
+            if (item) {
+                item.timestamp = 0;
+                item.lastWatched = new Date().toISOString();
+                
+                localStorage.setItem('youtube_history', JSON.stringify(videoHistory));
+                updateHistoryDisplay();
+                
+                if (currentVideoId === videoId && player) {
+                    player.seekTo(0);
+                    player.playVideo();
+                    setStatus('Temps réinitialisé - Vidéo relancée depuis le début');
+                } else {
+                    setStatus('Temps réinitialisé pour ' + item.title);
+                }
+            }
+        }
+
+        // Fonction pour supprimer une vidéo de l'historique
+        function removeFromHistory(videoId) {
+            const item = videoHistory.find(item => item.videoId === videoId);
+            if (item) {
+                videoHistory = videoHistory.filter(item => item.videoId !== videoId);
+                filteredHistory = filteredHistory.filter(item => item.videoId !== videoId);
+                
+                localStorage.setItem('youtube_history', JSON.stringify(videoHistory));
+                updateHistoryDisplay();
+                
+                if (currentVideoId === videoId) {
+                    if (player) {
+                        player.stopVideo();
+                    }
+                    videoContainer.style.display = 'none';
+                    currentVideoTitle.textContent = 'Sélectionnez une vidéo';
+                    currentVideoId = null;
+                    stopAutoSave();
+                    setStatus('Vidéo supprimée de l\'historique');
+                } else {
+                    setStatus('Vidéo supprimée de l\'historique');
+                }
+            }
+        }
+
+        // Permettre de lancer la vidéo avec la touche Entrée
+        document.getElementById('videoUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadVideo();
+            }
+        });
+
+        // Nettoyer le cache des titres périodiquement pour éviter la surcharge mémoire
+        setInterval(() => {
+            if (titleCache.size > 100) {
+                // Garder seulement les 50 titres les plus récents
+                const entries = Array.from(titleCache.entries());
+                titleCache.clear();
+                entries.slice(-50).forEach(([key, value]) => {
+                    titleCache.set(key, value);
+                });
+            }
+        }, 300000); // Toutes les 5 minutes
+    </script>
+</body>
+</html>
