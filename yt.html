@@ -406,6 +406,11 @@
                     <div id="youtubePlayer"></div>
                 </div>
                 <div id="status"></div>
+                <div id="adControls" style="display: none; margin-top: 10px;">
+                    <button id="skipAdBtn" style="background: #ff9800; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                        <i class="fa fa-forward"></i> Passer la publicité
+                    </button>
+                </div>
             </div>
         </main>
     </div>
@@ -421,6 +426,8 @@
         const currentVideoTitle = document.getElementById('currentVideoTitle');
         const themeBtn = document.getElementById('themeBtn');
         const searchInput = document.getElementById('searchInput');
+        const adControls = document.getElementById('adControls');
+        const skipAdBtn = document.getElementById('skipAdBtn');
         
         let videoHistory = [];
         let filteredHistory = [];
@@ -678,7 +685,15 @@
                         controls: 1,
                         showinfo: 0,
                         iv_load_policy: 3,
-                        cc_load_policy: 0
+                        cc_load_policy: 0,
+                        // Paramètres pour réduire les publicités
+                        hl: 'fr',
+                        fs: 1,
+                        disablekb: 0,
+                        loop: 0,
+                        playlist: '',
+                        // Paramètres anti-pub
+                        host: 'https://www.youtube-nocookie.com'
                     },
                     events: {
                         onReady: onPlayerReady,
@@ -777,6 +792,9 @@
             if (event.data === 1) {
                 // Lecture en cours - sauvegarder immédiatement
                 saveCurrentTime();
+                
+                // Vérifier si c'est une publicité
+                checkForAd();
             } else if (event.data === 2) {
                 // Pause - sauvegarder immédiatement
                 saveCurrentTime();
@@ -798,6 +816,71 @@
         function onPlayerError(event) {
             console.error('Erreur du player YouTube:', event.data);
             setStatus('Erreur lors de la lecture de la vidéo.', 'red');
+        }
+
+        // Fonction pour détecter et gérer les publicités
+        function checkForAd() {
+            if (!player) return;
+            
+            try {
+                // Vérifier si c'est une publicité en regardant la durée
+                const duration = player.getDuration();
+                const currentTime = player.getCurrentTime();
+                
+                // Les publicités YouTube sont généralement courtes (15s, 30s, etc.)
+                if (duration > 0 && duration <= 60) {
+                    // Probablement une publicité
+                    console.log('Publicité détectée - Durée:', duration, 'secondes');
+                    setStatus('Publicité détectée - Attendez la fin...', '#ff9800');
+                    adControls.style.display = 'block';
+                    
+                    // Essayer de passer la publicité si possible
+                    setTimeout(() => {
+                        if (player && player.getPlayerState() === 1) {
+                            const remainingTime = duration - currentTime;
+                            if (remainingTime > 0 && remainingTime < 5) {
+                                // Presque finie, attendre
+                                console.log('Publicité presque terminée');
+                            }
+                        }
+                    }, 1000);
+                } else {
+                    // Pas une publicité, remettre le statut normal
+                    if (currentVideoId) {
+                        setStatus('Lecture en cours...', '#2196f3');
+                    }
+                    adControls.style.display = 'none';
+                }
+            } catch (error) {
+                // Ignorer les erreurs de détection de publicité
+            }
+        }
+
+        // Fonction pour essayer de passer la publicité
+        function skipAd() {
+            if (!player) return;
+            
+            try {
+                // Essayer plusieurs méthodes pour passer la publicité
+                player.seekTo(player.getDuration());
+                player.playVideo();
+                
+                // Essayer aussi de cliquer sur le bouton de saut s'il existe
+                const skipButton = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modest');
+                if (skipButton) {
+                    skipButton.click();
+                }
+                
+                setStatus('Tentative de passage de la publicité...', '#ff9800');
+                
+                // Masquer les contrôles après un délai
+                setTimeout(() => {
+                    adControls.style.display = 'none';
+                }, 3000);
+                
+            } catch (error) {
+                console.error('Erreur lors de la tentative de saut de publicité:', error);
+            }
         }
 
         // Système de sauvegarde automatique amélioré
@@ -982,6 +1065,11 @@
             }
         });
 
+        // Gestionnaire pour le bouton de saut de publicité
+        skipAdBtn.addEventListener('click', function() {
+            skipAd();
+        });
+
         // Nettoyer le cache des titres périodiquement pour éviter la surcharge mémoire
         setInterval(() => {
             if (titleCache.size > 100) {
@@ -993,6 +1081,25 @@
                 });
             }
         }, 300000); // Toutes les 5 minutes
+
+        // Surveiller les publicités et essayer de les passer automatiquement
+        setInterval(() => {
+            if (player && player.getPlayerState && player.getPlayerState() === 1) {
+                try {
+                    const duration = player.getDuration();
+                    if (duration > 0 && duration <= 60) {
+                        // Probablement une publicité, essayer de la passer
+                        const skipButton = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modest');
+                        if (skipButton) {
+                            skipButton.click();
+                            console.log('Bouton de saut de publicité cliqué automatiquement');
+                        }
+                    }
+                } catch (error) {
+                    // Ignorer les erreurs
+                }
+            }
+        }, 2000); // Vérifier toutes les 2 secondes
     </script>
 </body>
 </html>
