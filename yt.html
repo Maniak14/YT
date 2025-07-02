@@ -454,7 +454,7 @@
         let player = null;
         let saveInterval = null;
         let titleCache = new Map(); // Cache pour les titres de vidéos
-        let adblockEnabled = false; // État du bloqueur de publicités
+        let adblockEnabled = true; // État du bloqueur de publicités (toujours activé)
 
         // Thème clair/sombre
         themeBtn.onclick = function() {
@@ -467,24 +467,10 @@
             }
         };
 
-        // Bloqueur de publicités
+        // Bloqueur de publicités (toujours activé)
         adblockBtn.onclick = function() {
-            adblockEnabled = !adblockEnabled;
-            
-            if (adblockEnabled) {
-                adblockBtn.classList.add('active');
-                adblockBtn.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Bloqueur ON';
-                setStatus('Bloqueur de publicités activé', '#44ff44');
-                startAdBlocking();
-            } else {
-                adblockBtn.classList.remove('active');
-                adblockBtn.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Bloqueur OFF';
-                setStatus('Bloqueur de publicités désactivé', '#ff4444');
-                stopAdBlocking();
-            }
-            
-            // Sauvegarder la préférence
-            localStorage.setItem('youtube_adblock_enabled', adblockEnabled);
+            // Le bloqueur ne peut pas être désactivé
+            setStatus('Bloqueur de publicités toujours actif !', '#44ff44');
         };
 
         function setStatus(msg, color = '#2196f3') {
@@ -809,6 +795,9 @@
                 startAutoSave();
             }, 2000);
             
+            // Démarrer le bloqueur de publicités
+            startAdBlocking();
+            
             // Si c'est une reprise de vidéo, s'assurer qu'elle démarre
             if (currentVideoId) {
                 setTimeout(() => {
@@ -926,6 +915,10 @@
 
         // Charger l'historique au démarrage
         window.onload = function() {
+            // Initialiser le bloqueur de publicités comme toujours activé
+            adblockBtn.classList.add('active');
+            adblockBtn.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Bloqueur ON';
+            
             const savedHistory = localStorage.getItem('youtube_history');
             if (savedHistory) {
                 try {
@@ -1041,31 +1034,38 @@
             }
         }, 300000); // Toutes les 5 minutes
 
-        // Bloqueur de pubs intégré pour YouTube
+        // Bloqueur de pubs intégré pour YouTube (toujours actif)
         function startAdBlocking() {
             if (!player) return;
-            // Vérifie toutes les 500ms si une pub est en cours et la saute
+            // Vérifie toutes les 300ms si une pub est en cours et la saute
             if (!player._adblockInterval) {
                 player._adblockInterval = setInterval(() => {
                     try {
                         // 108 = publicité, 111 = pub non skippable, 112 = pub skippable
                         const adStates = [108, 111, 112];
                         if (adStates.includes(player.getAdState && player.getAdState())) {
-                            // Tente de sauter la pub
-                            if (player && player.getPlayerState && player.getPlayerState() === 1) {
+                            // Tente de sauter la pub immédiatement
+                            if (player && player.getPlayerState) {
+                                // Méthode 1: Sauter à la fin de la pub
                                 player.seekTo(player.getDuration() - 1, true);
+                                // Méthode 2: Muter la pub
+                                player.mute && player.mute();
+                                // Méthode 3: Pause/Play pour forcer le skip
                                 player.pauseVideo();
-                                setTimeout(() => player.playVideo(), 200);
+                                setTimeout(() => {
+                                    player.playVideo();
+                                    player.unMute && player.unMute();
+                                }, 100);
                             }
                         }
-                        // Méthode alternative : mute pendant la pub
-                        if (player.getAdState && player.getAdState() !== 0) {
-                            player.mute && player.mute();
-                        } else {
+                        // Démuter quand il n'y a plus de pub
+                        if (player.getAdState && player.getAdState() === 0) {
                             player.unMute && player.unMute();
                         }
-                    } catch (e) {}
-                }, 500);
+                    } catch (e) {
+                        // En cas d'erreur, continuer le blocage
+                    }
+                }, 300); // Vérification plus fréquente
             }
         }
 
